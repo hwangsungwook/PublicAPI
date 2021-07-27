@@ -50,6 +50,9 @@ var bidNtceNoList = Expression<String>("bidNtceNoList")
 
 var api_key_koneps = ""
 
+let inqryBgnDt = "202107010000" //조회시작
+let inqryEndDt = "202107272359" //조회마감
+
 for api in try db.prepare(apis) {
     do {
         print("api_id: \(api[api_id]), api_key: \(api[api_key]), api_key_desc: \(api[api_key_desc])")
@@ -61,27 +64,30 @@ for api in try db.prepare(apis) {
 //    }
 }
 
-
-//for spec in try db.prepare(spec) {
-//    do {
-//       // print("bfSpecRgstNo: \(spec[bfSpecRgstNo]), refNo: \(spec[refNo])")
-//        let spec_count = spec[bfSpecRgstNo]
-//        //print("spec_count\(spec_count)")
-//
-//    }
-////    catch {
-////        print("Error in prepare\(error)")
-////    }
-//}
-
 print("api_key_koneps=\(api_key_koneps)")
 
 var weatherURL = "http://apis.data.go.kr/1230000/HrcspSsstndrdInfoService/getPublicPrcureThngInfoServc?serviceKey="
 
 weatherURL.append(api_key_koneps)
-weatherURL.append("&numOfRows=10&pageNo=1&inqryDiv=1&inqryBgnDt=202107230000")
-weatherURL.append("&inqryEndDt=202107232359&bfSpecRgstNo=356759&type=json")
+weatherURL.append("&numOfRows=10&pageNo=1&inqryDiv=1&inqryBgnDt=202107010000")
+weatherURL.append("&inqryEndDt=202107272359&bfSpecRgstNo=356759&type=json")
 
+// URL, 조회조건 생성
+func makeURL(with numOfRows :String, with pageNo :String) {
+
+    var url = "http://apis.data.go.kr/1230000/HrcspSsstndrdInfoService/getPublicPrcureThngInfoServc?serviceKey="
+    
+    url += api_key_koneps
+    url += "&numOfRows=" + String(numOfRows)
+    url += "&pageNo=" + String(pageNo)
+    url += "&inqryDiv=" + "1"
+    url += "&inqryBgnDt=" + inqryBgnDt
+    url += "&inqryEndDt=" + inqryEndDt
+    url += "&bfSpecRgstNo=" + ""
+    url += "&type=" + "json"
+    
+    //print("url=\(url)")
+}
 
 func fetchData() {
     let urlString = "\(weatherURL)"
@@ -105,7 +111,7 @@ func performRequest(with urlString: String) {
 //                if let weather = parseJSON(safeData) {
 //                    print(weather)
 //                }
-
+                makeURL(with: "1", with: "1")
                 parseJSON(safeData)
             }
             
@@ -124,10 +130,12 @@ func parseJSON(_ apiData: Data) {
     do {
         let decodedData = try decoder.decode(ApiData.self, from: apiData)
         let rowCount: Int = decodedData.response.body.numOfRows
+        let totalCount: Int = decodedData.response.body.totalCount
         
+        print("totalCount=\(totalCount)")
         for index in 0...rowCount-1 {
 
-            //print(decodedData.response.body.items[index])
+            print("rowCount=\(rowCount)")
             // decodedData 형을 바로 insert 가능
             let insert = try spec.insert(decodedData.response.body.items[index])
             
