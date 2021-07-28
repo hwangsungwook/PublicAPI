@@ -53,6 +53,12 @@ var api_key_koneps = ""
 let inqryBgnDt = "202107010000" //조회시작
 let inqryEndDt = "202107272359" //조회마감
 
+var totalCount: Int = 0 //전체 데이터건수
+var totalPage: Int = 0  //전체 페이지수
+var numOfRows: Int = 0  //데이터 건수
+
+var url: String = ""    //URL String
+
 for api in try db.prepare(apis) {
     do {
         print("api_id: \(api[api_id]), api_key: \(api[api_key]), api_key_desc: \(api[api_key_desc])")
@@ -69,13 +75,13 @@ print("api_key_koneps=\(api_key_koneps)")
 var weatherURL = "http://apis.data.go.kr/1230000/HrcspSsstndrdInfoService/getPublicPrcureThngInfoServc?serviceKey="
 
 weatherURL.append(api_key_koneps)
-weatherURL.append("&numOfRows=10&pageNo=1&inqryDiv=1&inqryBgnDt=202107010000")
+weatherURL.append("&numOfRows=1&pageNo=1&inqryDiv=1&inqryBgnDt=202107010000")
 weatherURL.append("&inqryEndDt=202107272359&bfSpecRgstNo=356759&type=json")
 
 // URL, 조회조건 생성
 func makeURL(with numOfRows :String, with pageNo :String) {
 
-    var url = "http://apis.data.go.kr/1230000/HrcspSsstndrdInfoService/getPublicPrcureThngInfoServc?serviceKey="
+    url = "http://apis.data.go.kr/1230000/HrcspSsstndrdInfoService/getPublicPrcureThngInfoServc?serviceKey="
     
     url += api_key_koneps
     url += "&numOfRows=" + String(numOfRows)
@@ -123,6 +129,38 @@ func performRequest(with urlString: String) {
     }
 }
 
+func initRequest(with urlString: String) {
+    if let url = URL(string: urlString) {
+        
+        let sema = DispatchSemaphore(value: 0)
+        let session = URLSession(configuration: .default)
+        
+        let task = session.dataTask(with: url) { (data, response, error) in
+            if error != nil {
+                print(error.debugDescription)
+                return
+            }
+            
+            if let safeData = data {
+
+                initJSON(safeData)
+            }
+            
+            sema.signal()
+        }
+        
+        task.resume()
+        sema.wait()
+    }
+}
+
+func getTotalCount() {
+    
+    for index in 0...totalPage-1 {
+        print("\(index) Page Process")
+    }
+}
+
 func parseJSON(_ apiData: Data) {
     let decoder = JSONDecoder()
     //let itemList = [Items]()
@@ -130,9 +168,13 @@ func parseJSON(_ apiData: Data) {
     do {
         let decodedData = try decoder.decode(ApiData.self, from: apiData)
         let rowCount: Int = decodedData.response.body.numOfRows
-        let totalCount: Int = decodedData.response.body.totalCount
+        totalCount = decodedData.response.body.totalCount
+        numOfRows = rowCount
+        totalPage = totalCount/numOfRows
         
-        print("totalCount=\(totalCount)")
+//        print("totalCount=\(totalCount)")
+//        print("totalPage=\(totalPage)")
+        
         for index in 0...rowCount-1 {
 
             print("rowCount=\(rowCount)")
@@ -152,5 +194,24 @@ func parseJSON(_ apiData: Data) {
     }
 }
 
-fetchData()
+func initJSON(_ apiData: Data) {
+    let decoder = JSONDecoder()
+    //let itemList = [Items]()
+    
+    do {
+        let decodedData = try decoder.decode(ApiData.self, from: apiData)
+        let rowCount: Int = decodedData.response.body.numOfRows
+        totalCount = decodedData.response.body.totalCount
+        numOfRows = rowCount
+        totalPage = totalCount/numOfRows
+                
+        return
+        
+    } catch {
+        print("error: \(error)")
+        return
+    }
+}
 
+fetchData()
+getTotalCount()
